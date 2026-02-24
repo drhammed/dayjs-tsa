@@ -1,40 +1,5 @@
-import * as C from './constant'
-import en from './locale/en'
-import U from './utils'
 
-let L = 'en' // global locale
-const Ls = {} // global loaded locale
-Ls[L] = en
-
-const IS_DAYJS = '$isDayjsObject'
-
-// eslint-disable-next-line no-use-before-define
-const isDayjs = d => d instanceof Dayjs || !!(d && d[IS_DAYJS])
-
-const parseLocale = (preset, object, isLocal) => {
-  let l
-  if (!preset) return L
-  if (typeof preset === 'string') {
-    const presetLower = preset.toLowerCase()
-    if (Ls[presetLower]) {
-      l = presetLower
-    }
-    if (object) {
-      Ls[presetLower] = object
-      l = presetLower
-    }
-    const presetSplit = preset.split('-')
-    if (!l && presetSplit.length > 1) {
-      return parseLocale(presetSplit[0])
-    }
-  } else {
-    const { name } = preset
-    Ls[name] = preset
-    l = name
-  }
-  if (!isLocal && l) L = l
-  return l || (!isLocal && L)
-}
+// testing with QA
 
 const dayjs = function (date, c) {
   if (isDayjs(date)) {
@@ -55,32 +20,8 @@ const wrapper = (date, instance) =>
     $offset: instance.$offset // todo: refactor; do not use this.$offset in you code
   })
 
-const Utils = U // for plugin use
-Utils.l = parseLocale
-Utils.i = isDayjs
-Utils.w = wrapper
 
-const parseDate = (cfg) => {
-  const { date, utc } = cfg
-  if (date === null) return new Date(NaN) // null is invalid
-  if (Utils.u(date)) return new Date() // today
-  if (date instanceof Date) return new Date(date)
-  if (typeof date === 'string' && !/Z$/i.test(date)) {
-    const d = date.match(C.REGEX_PARSE)
-    if (d) {
-      const m = d[2] - 1 || 0
-      const ms = (d[7] || '0').substring(0, 3)
-      if (utc) {
-        return new Date(Date.UTC(d[1], m, d[3]
-          || 1, d[4] || 0, d[5] || 0, d[6] || 0, ms))
-      }
-      return new Date(d[1], m, d[3]
-        || 1, d[4] || 0, d[5] || 0, d[6] || 0, ms)
-    }
-  }
-
-  return new Date(date) // everything else
-}
+// still testing
 
 class Dayjs {
   constructor(cfg) {
@@ -95,44 +36,13 @@ class Dayjs {
     this.init()
   }
 
-  init() {
-    const { $d } = this
-    this.$y = $d.getFullYear()
-    this.$M = $d.getMonth()
-    this.$D = $d.getDate()
-    this.$W = $d.getDay()
-    this.$H = $d.getHours()
-    this.$m = $d.getMinutes()
-    this.$s = $d.getSeconds()
-    this.$ms = $d.getMilliseconds()
-  }
-
-  // eslint-disable-next-line class-methods-use-this
-  $utils() {
-    return Utils
-  }
 
   isValid() {
     return !(this.$d.toString() === C.INVALID_DATE_STRING)
   }
 
-  isSame(that, units) {
-    const other = dayjs(that)
-    return this.startOf(units) <= other && other <= this.endOf(units)
-  }
 
-  isAfter(that, units) {
-    return dayjs(that) < this.startOf(units)
-  }
-
-  isBefore(that, units) {
-    return this.endOf(units) < dayjs(that)
-  }
-
-  $g(input, get, set) {
-    if (Utils.u(input)) return this[get]
-    return this.set(set, input)
-  }
+  // again, testing
 
   unix() {
     return Math.floor(this.valueOf() / 1000)
@@ -191,32 +101,6 @@ class Dayjs {
     return this.startOf(arg, false)
   }
 
-  $set(units, int) { // private set
-    const unit = Utils.p(units)
-    const utcPad = `set${this.$u ? 'UTC' : ''}`
-    const name = {
-      [C.D]: `${utcPad}Date`,
-      [C.DATE]: `${utcPad}Date`,
-      [C.M]: `${utcPad}Month`,
-      [C.Y]: `${utcPad}FullYear`,
-      [C.H]: `${utcPad}Hours`,
-      [C.MIN]: `${utcPad}Minutes`,
-      [C.S]: `${utcPad}Seconds`,
-      [C.MS]: `${utcPad}Milliseconds`
-    }[unit]
-    const arg = unit === C.D ? this.$D + (int - this.$W) : int
-
-    if (unit === C.M || unit === C.Y) {
-      // clone is for badMutable plugin
-      const date = this.clone().set(C.DATE, 1)
-      date.$d[name](arg)
-      date.init()
-      this.$d = date.set(C.DATE, Math.min(this.$D, date.daysInMonth())).$d
-    } else if (name) this.$d[name](arg)
-
-    this.init()
-    return this
-  }
 
   set(string, int) {
     return this.clone().$set(string, int)
@@ -258,29 +142,6 @@ class Dayjs {
   subtract(number, string) {
     return this.add(number * -1, string)
   }
-
-  format(formatStr) {
-    const locale = this.$locale()
-
-    if (!this.isValid()) return locale.invalidDate || C.INVALID_DATE_STRING
-
-    const str = formatStr || C.FORMAT_DEFAULT
-    const zoneStr = Utils.z(this)
-    const { $H, $m, $M } = this
-    const {
-      weekdays, months, meridiem
-    } = locale
-    const getShort = (arr, index, full, length) => (
-      (arr && (arr[index] || arr(this, str))) || full[index].slice(0, length)
-    )
-    const get$H = num => (
-      Utils.s($H % 12 || 12, num, '0')
-    )
-
-    const meridiemFunc = meridiem || ((hour, minute, isLowercase) => {
-      const m = (hour < 12 ? 'AM' : 'PM')
-      return isLowercase ? m.toLowerCase() : m
-    })
 
     const matches = (match) => {
       switch (match) {
@@ -430,29 +291,8 @@ class Dayjs {
 
 const proto = Dayjs.prototype
 dayjs.prototype = proto;
-[
-  ['$ms', C.MS],
-  ['$s', C.S],
-  ['$m', C.MIN],
-  ['$H', C.H],
-  ['$W', C.D],
-  ['$M', C.M],
-  ['$y', C.Y],
-  ['$D', C.DATE]
-].forEach((g) => {
-  proto[g[1]] = function (input) {
-    return this.$g(input, g[0], g[1])
-  }
-})
 
-dayjs.extend = (plugin, option) => {
-  if (!plugin.$i) { // install plugin only once
-    plugin(option, Dayjs, dayjs)
-    plugin.$i = true
-  }
-  return dayjs
-}
-
+//final testing
 dayjs.locale = parseLocale
 
 dayjs.isDayjs = isDayjs
